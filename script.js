@@ -75,9 +75,17 @@ function render() {
     }
     tableHtml += '</table>';
 
-    // Set table HTML to contentDiv
-    contentDiv.innerHTML = tableHtml;
+    // Set table HTML inside a wrapper for aspect ratio
+    contentDiv.innerHTML = `<div class="board-wrapper">${tableHtml}</div>`;
     renderCurrentPlayer();
+
+    // Nach dem Rendern ggf. Gewinnlinie neu zeichnen
+    if (isGameFinished()) {
+        const winCombination = getWinningCombination();
+        if (winCombination) {
+            drawWinningLine(winCombination);
+        }
+    }
 }
 
 function handleClick(cell, index) {
@@ -115,6 +123,58 @@ function getWinningCombination() {
     return null;
 }
 
+// Entfernt alle Gewinnlinien
+function removeWinningLines() {
+    const content = document.getElementById('content');
+    if (!content) return;
+    const lines = content.querySelectorAll('.winning-line');
+    lines.forEach(line => line.remove());
+}
+
+function drawWinningLine(combination) {
+    if (!combination) return;
+    removeWinningLines();
+
+    const lineColor = '#ffffff';
+    const lineWidth = 5;
+
+    const content = document.getElementById('content');
+    const contentRect = content.getBoundingClientRect();
+
+    const allCells = document.querySelectorAll('td');
+    const startCell = allCells[combination[0]];
+    const endCell = allCells[combination[2]];
+
+    const startRect = startCell.getBoundingClientRect();
+    const endRect = endCell.getBoundingClientRect();
+
+    const startX = startRect.left + startRect.width / 2 - contentRect.left;
+    const startY = startRect.top + startRect.height / 2 - contentRect.top;
+
+    const endX = endRect.left + endRect.width / 2 - contentRect.left;
+    const endY = endRect.top + endRect.height / 2 - contentRect.top;
+
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    const length = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+    const line = document.createElement('div');
+    line.className = 'winning-line';
+    line.style.position = 'absolute';
+    line.style.width = `${length}px`;
+    line.style.height = `${lineWidth}px`;
+    line.style.backgroundColor = lineColor;
+    line.style.top = `${startY - lineWidth / 2}px`;
+    line.style.left = `${startX}px`;
+    line.style.transform = `rotate(${angle}deg)`;
+    line.style.transformOrigin = 'left center';
+    line.style.zIndex = 10;
+
+    content.style.position = 'relative';
+    content.appendChild(line);
+}
+
 function restartGame() {
     fields = [
         null,
@@ -128,6 +188,7 @@ function restartGame() {
         null,
     ];
     currentPlayer = 'circle';
+    removeWinningLines();
     render();
     renderCurrentPlayer();
 }
@@ -212,51 +273,16 @@ function generateCrossSVG() {
     return svgHtml;
 }
 
-
-
-function drawWinningLine(combination) {
-    const lineColor = '#ffffff';
-    const lineWidth = 5;
-
-    const content = document.getElementById('content');
-    const contentRect = content.getBoundingClientRect();
-
-    const allCells = document.querySelectorAll('td');
-    const startCell = allCells[combination[0]];
-    const endCell = allCells[combination[2]];
-
-    const startRect = startCell.getBoundingClientRect();
-    const endRect = endCell.getBoundingClientRect();
-
-    const startX = startRect.left + startRect.width / 2 - contentRect.left;
-    const startY = startRect.top + startRect.height / 2 - contentRect.top;
-
-    const endX = endRect.left + endRect.width / 2 - contentRect.left;
-    const endY = endRect.top + endRect.height / 2 - contentRect.top;
-
-    const deltaX = endX - startX;
-    const deltaY = endY - startY;
-    const length = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI); // in Grad
-
-    const line = document.createElement('div');
-    line.style.position = 'absolute';
-    line.style.width = `${length}px`;
-    line.style.height = `${lineWidth}px`;
-    line.style.backgroundColor = lineColor;
-    line.style.top = `${startY - lineWidth / 2}px`;
-    line.style.left = `${startX}px`;
-    line.style.transform = `rotate(${angle}deg)`;
-    line.style.transformOrigin = 'left center';
-    line.style.zIndex = 10;
-
-    content.style.position = 'relative'; // wichtig!
-    content.appendChild(line);
-}
-
-function disableAllClicks() {
-    const allCells = document.querySelectorAll('td');
-    allCells.forEach(cell => {
-        cell.onclick = null;
-    });
-}
+// Gewinnlinie bei Resize neu zeichnen
+window.addEventListener('resize', () => {
+    if (isGameFinished()) {
+        const winCombination = getWinningCombination();
+        if (winCombination) {
+            drawWinningLine(winCombination);
+        } else {
+            removeWinningLines();
+        }
+    } else {
+        removeWinningLines();
+    }
+});
